@@ -393,7 +393,7 @@ let isSaving = false;
 async function init() {
   showLoading('노트 불러오는 중...');
   try {
-    const res = await fetch(SCRIPT_URL);
+    const res = await fetch(SCRIPT_URL + '?t=' + Date.now());
     const json = await res.json();
     if (json.status === 'ok') {
       notes = json.data;
