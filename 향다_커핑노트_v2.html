@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>향다미주가배 — 음용노트</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --paper: #faf7f2;
+    --brown-dark: #2c1810;
+    --brown-mid: #6b3d2e;
+    --brown-light: #c9a882;
+    --brown-pale: #e8d9c4;
+    --accent: #8b4513;
+    --text: #1e0f08;
+    --text-mid: #5a3a2a;
+    --text-light: #9a7a6a;
+    --border: #d4c0a8;
+    --border-light: #e8ddd0;
+    --input-bg: #fff9f4;
+    --shadow: rgba(44, 24, 16, 0.12);
+    --sidebar-w: 260px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Serif KR', serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ─── 사이드바 ─── */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-w);
+    background: var(--brown-dark); display: flex; flex-direction: column;
+    z-index: 200; transition: transform 0.3s ease; overflow: hidden;
+  }
+  .sidebar.hidden { transform: translateX(-100%); }
+
+  .sidebar-header { padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .sidebar-logo { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; color: var(--brown-light); letter-spacing: 0.12em; display: block; margin-bottom: 3px; }
+  .sidebar-sub { font-family: 'Noto Sans KR', sans-serif; font-size: 10px; color: rgba(201,168,130,0.45); letter-spacing: 0.1em; }
+
+  .sidebar-new {
+    margin: 12px 14px 6px; background: var(--accent); color: #fff9f4; border: none;
+    padding: 9px 14px; border-radius: 6px; font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center;
+    gap: 8px; width: calc(100% - 28px); transition: background 0.2s;
+  }
+  .sidebar-new:hover { background: #a0521a; }
+
+  .note-list { flex: 1; overflow-y: auto; padding: 6px 0; scrollbar-width: thin; scrollbar-color: rgba(201,168,130,0.3) transparent; }
+  .note-item { padding: 10px 18px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; }
+  .note-item:hover { background: rgba(255,255,255,0.04); }
+  .note-item.active { border-left-color: var(--brown-light); background: rgba(201,168,130,0.1); }
+  .note-item-date { font-family: 'Cormorant Garamond', serif; font-size: 12px; color: var(--brown-light); letter-spacing: 0.05em; margin-bottom: 2px; }
+  .note-item-bean { font-family: 'Noto Sans KR', sans-serif; font-size: 11px; color: rgba(255,255,255,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note-empty { padding: 28px 18px; text-align: center; font-family: 'Noto Sans KR', sans-serif; font-size: 11px; color: rgba(255,255,255,0.22); line-height: 1.9; }
+
+  /* 사이드바 오버레이 (모바일) */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 190; }
+  .overlay.show { display: block; }
+
+  /* ─── 메인 ─── */
+  .main { margin-left: var(--sidebar-w); min-height: 100vh; padding: 36px 44px; max-width: calc(var(--sidebar-w) + 860px); }
+
+  /* ─── 상단 바 ─── */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; gap: 12px; }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .hamburger { display: none; background: none; border: none; cursor: pointer; padding: 6px; color: var(--text-mid); }
+  .topbar-title { font-family: 'Cormorant Garamond', serif; font-size: 15px; color: var(--text-light); font-style: italic; }
+  .topbar-right { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .btn { font-family: 'Noto Sans KR', sans-serif; font-size: 11px; font-weight: 500; padding: 8px 14px; border-radius: 5px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.03em; white-space: nowrap; }
+  .btn-primary { background: var(--brown-mid); color: var(--paper); border: none; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--text-mid); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--brown-pale); }
+  .btn-danger { background: transparent; color: #c0392b; border: 1px solid #e8c0bb; }
+  .btn-danger:hover { background: #fdf0ef; }
+
+  /* ─── 카드 ─── */
+  .card { background: var(--paper); border: 1px solid var(--border-light); border-radius: 12px; padding: 26px 28px; margin-bottom: 18px; box-shadow: 0 2px 16px var(--shadow); }
+  .card-title { font-family: 'Cormorant Garamond', serif; font-size: 11px; font-weight: 600; letter-spacing: 0.25em; color: var(--accent); text-transform: uppercase; margin-bottom: 22px; display: flex; align-items: center; gap: 10px; }
+  .card-title::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
+
+  /* ─── 필드 그리드 ─── */
+  .field-grid { display: grid; gap: 14px 20px; }
+  .field-grid-2 { grid-template-columns: 1fr 1fr; }
+  .field-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .field-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.span-2 { grid-column: span 2; }
+  .field.span-4 { grid-column: span 4; }
+
+  label { font-family: 'Noto Sans KR', sans-serif; font-size: 10px; font-weight: 500; color: var(--text-light); letter-spacing: 0.08em; }
+
+  input[type="text"], input[type="date"], input[type="number"], textarea, select {
+    font-family: 'Noto Serif KR', serif; font-size: 13px; color: var(--text);
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 11px; width: 100%; transition: border-color 0.2s, box-shadow 0.2s; outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--brown-light); box-shadow: 0 0 0 3px rgba(201,168,130,0.15); }
+  textarea { resize: vertical; line-height: 1.7; }
+
+  /* ─── HOT/ICE 토글 ─── */
+  .temp-toggle { display: flex; background: var(--border-light); border-radius: 7px; padding: 3px; width: fit-content; }
+  .temp-btn { font-family: 'Noto Sans KR', sans-serif; font-size: 11px; font-weight: 500; padding: 6px 18px; border: none; border-radius: 5px; cursor: pointer; transition: all 0.2s; color: var(--text-light); background: transparent; }
+  .temp-btn.active-hot { background: #c0392b; color: #fff; box-shadow: 0 1px 4px rgba(192,57,43,0.3); }
+  .temp-btn.active-ice { background: #2980b9; color: #fff; box-shadow: 0 1px 4px rgba(41,128,185,0.3); }
+
+  /* ─── 레시피 테이블 ─── */
+  .recipe-table-wrap { overflow-x: auto; margin-top: 14px; }
+  .recipe-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .recipe-table th { font-family: 'Noto Sans KR', sans-serif; font-size: 10px; font-weight: 500; color: var(--text-light); letter-spacing: 0.08em; padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); background: var(--brown-pale); }
+  .recipe-table th:first-child { border-radius: 8px 0 0 0; }
+  .recipe-table th:last-child { border-radius: 0 8px 0 0; }
+  .recipe-table td { padding: 4px 5px; border-bottom: 1px solid var(--border-light); text-align: center; vertical-align: middle; }
+  .recipe-table td:first-child { font-family: 'Noto Sans KR', sans-serif; font-size: 11px; font-weight: 500; color: var(--text-light); background: #f5f0ea; padding: 8px 12px; text-align: left; white-space: nowrap; }
+  .recipe-table td input[type="number"] { text-align: center; padding: 6px 4px; font-size: 13px; }
+  .recipe-table .total-cell { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: var(--accent); background: rgba(201,168,130,0.1); border-radius: 4px; padding: 6px 10px; display: inline-block; min-width: 52px; }
+
+  /* ─── 평점 블록 ─── */
+  /* [버그수정①] .flavor-grid / .flavor-label 중복 제거하고 여기 한 곳에만 정의 */
+  .flavor-grid { display: grid; grid-template-columns: 60px 1fr; gap: 12px 16px; align-items: center; }
+  .flavor-label { font-family: 'Noto Sans KR', sans-serif; font-size: 11px; font-weight: 500; color: var(--text-mid); text-align: right; }
+  .rating-container { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+  .rating-block { width: 32px; height: 22px; background: var(--brown-pale); border-radius: 4px; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+  .rating-block.active { background: var(--brown-mid); }
+  .rating-block:hover { background: var(--brown-light); opacity: 0.85; }
+
+  /* ─── 구분선 / 빈 화면 ─── */
+  .divider { height: 1px; background: var(--border-light); margin: 18px 0; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
+  .empty-icon { font-size: 56px; margin-bottom: 18px; opacity: 0.35; }
+  .empty-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; color: var(--brown-mid); margin-bottom: 10px; letter-spacing: 0.04em; }
+  .empty-desc { font-family: 'Noto Sans KR', sans-serif; font-size: 12px; color: var(--text-light); line-height: 2; }
+
+  /* ─── 로딩 오버레이 ─── */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(245,240,232,0.85); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+  .loading-overlay.hidden { display: none; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'Noto Sans KR', sans-serif; font-size: 12px; color: var(--text-light); }
+
+  /* ─── 토스트 ─── */
+  .toast { position: fixed; bottom: 28px; right: 28px; background: var(--brown-dark); color: var(--brown-light); padding: 11px 18px; border-radius: 8px; font-family: 'Noto Sans KR', sans-serif; font-size: 12px; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.3); opacity: 0; transform: translateY(8px); transition: all 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { background: #8b1c1c; }
+
+  /* ─── 인쇄 ─── */
+  @media print {
+    .sidebar, .overlay, .topbar, .loading-overlay, .hamburger { display: none !important; }
+    .main { margin-left: 0; padding: 20px; }
+    .card { box-shadow: none; break-inside: avoid; }
+  }
+
+  /* ─── 반응형 (태블릿) ─── */
+  @media (max-width: 1000px) {
+    .field-grid-4 { grid-template-columns: 1fr 1fr; }
+    .field.span-4 { grid-column: span 2; }
+    .field-grid-3 { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ─── 반응형 (모바일) ─── */
+  @media (max-width: 700px) {
+    :root { --sidebar-w: 240px; }
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; padding: 20px 16px; }
+    .hamburger { display: flex; }
+    .topbar-right .btn-ghost { display: none; } /* 인쇄 버튼 모바일 숨김 */
+    .field-grid-2, .field-grid-3, .field-grid-4 { grid-template-columns: 1fr; }
+    .field.span-2, .field.span-4 { grid-column: span 1; }
+    .card { padding: 20px 18px; }
+    .recipe-table td:first-child { padding: 6px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ★ 여기에 Apps Script URL을 붙여넣으세요 ★
+     배포 후 받는 주소를 아래 '' 안에 넣으면 돼요 -->
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw8mfP_TbxvhBShzvy7zSvoeIJkRpUXLFYx536dt0ZthkodNxwowIiSU1NRuVKo-VU/exec';
+</script>
+
+<!-- 로딩 오버레이 -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">노트 불러오는 중...</div>
+</div>
+
+<!-- 모바일 오버레이 -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- 사이드바 -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-logo">향다미주가배</span>
+    <span class="sidebar-sub">CUPPING NOTES</span>
+  </div>
+  <button class="sidebar-new" onclick="newNote()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    새 노트 작성
+  </button>
+  <div class="note-list" id="noteList">
+    <div class="note-empty" id="noteEmpty">아직 작성된 노트가 없어요<br>새 노트를 작성해보세요 ☕</div>
+  </div>
+</aside>
+
+<!-- 메인 -->
+<main class="main">
+  <!-- 상단 바 -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" onclick="toggleSidebar()" aria-label="메뉴">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-title" id="editorDateLabel"></div>
+    </div>
+    <div class="topbar-right" id="toolbarRight" style="display:none;">
+      <button class="btn btn-ghost" onclick="printNote()">🖨 인쇄</button>
+      <button class="btn btn-danger" onclick="deleteNote()">삭제</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveNote()">저장</button>
+    </div>
+  </div>
+
+  <!-- 빈 화면 -->
+  <div id="emptyState" class="empty-state">
+    <div class="empty-icon">☕</div>
+    <div class="empty-title">오늘의 한 잔을 기록해보세요</div>
+    <div class="empty-desc">왼쪽 메뉴에서 '새 노트 작성'을 눌러보세요</div>
+  </div>
+
+  <!-- 에디터 -->
+  <div id="noteEditor" style="display:none;">
+
+    <!-- 기본 정보 -->
+    <div class="card">
+      <div class="card-title">기본 정보</div>
+      <div class="field-grid field-grid-3">
+        <div class="field"><label>작성일</label><input type="date" id="f_date"></div>
+        <div class="field"><label>장소</label><input type="text" id="f_place" placeholder="집, 카페이름 등"></div>
+        <div class="field"><label>멤버</label><input type="text" id="f_members" placeholder="이름, 이름..."></div>
+      </div>
+    </div>
+
+    <!-- 원두 정보 -->
+    <div class="card">
+      <div class="card-title">원두 정보</div>
+      <div class="field" style="margin-bottom:16px;">
+        <label>원두명</label>
+        <input type="text" id="f_beanname" placeholder="예) 에티오피아 첼베사 워시드" style="font-size:16px; padding:10px 12px;">
+      </div>
+      <div class="field-grid field-grid-4">
+        <div class="field span-2"><label>산지</label><input type="text" id="f_origin" placeholder="예) 에티오피아"></div>
+        <div class="field"><label>프로세스</label><input type="text" id="f_process" placeholder="워시드, 내추럴 등"></div>
+        <div class="field"><label>로스터</label><input type="text" id="f_roaster" placeholder="로스터리 이름"></div>
+        <div class="field"><label>로스팅 날짜</label><input type="date" id="f_roastdate"></div>
+        <div class="field"><label>지역</label><input type="text" id="f_region" placeholder="예) 게뎁"></div>
+        <div class="field"><label>농장 / 가공소</label><input type="text" id="f_farm" placeholder="농장 또는 가공소명"></div>
+        <div class="field"><label>재배고도</label><input type="text" id="f_altitude" placeholder="예) 2073m"></div>
+        <div class="field"><label>품종</label><input type="text" id="f_variety" placeholder="예) 에얼룸, 게이샤"></div>
+      </div>
+    </div>
+
+    <!-- 추출 레시피 -->
+    <div class="card">
+      <div class="card-title">추출 레시피</div>
+      <div style="display:flex; align-items:center; gap:18px; margin-bottom:18px; flex-wrap:wrap;">
+        <div class="temp-toggle">
+          <button class="temp-btn active-hot" id="btnHot" onclick="setTemp('HOT')">HOT</button>
+          <button class="temp-btn" id="btnIce" onclick="setTemp('ICE')">ICE</button>
+        </div>
+        <div class="field" style="min-width:90px;">
+          <label>도징량 (g)</label>
+          <input type="number" id="f_dose" placeholder="20" step="0.5">
+        </div>
+        <div class="field" style="min-width:100px;">
+          <label>분쇄도</label>
+          <input type="text" id="f_grind" placeholder="클릭, 마이크론">
+        </div>
+        <div class="field" style="min-width:90px;">
+          <label>물온도 (℃)</label>
+          <input type="number" id="f_temp" placeholder="93" step="1">
+        </div>
+        <div class="field" style="min-width:110px;">
+          <label>추출 도구</label>
+          <input type="text" id="f_brewer" placeholder="V60, 오리가미 등">
+        </div>
+      </div>
+      <div class="recipe-table-wrap">
+        <table class="recipe-table">
+          <thead>
+            <tr><th></th><th>1구간</th><th>2구간</th><th>3구간</th><th>4구간</th><th>5구간</th><th>총합</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>시간 (초)</td>
+              <td><input type="number" id="r_t1" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><input type="number" id="r_t2" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><input type="number" id="r_t3" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><input type="number" id="r_t4" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><input type="number" id="r_t5" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><span class="total-cell" id="total_t">—</span></td>
+            </tr>
+            <tr>
+              <td>유량 (ml)</td>
+              <td><input type="number" id="r_w1" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><input type="number" id="r_w2" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><input type="number" id="r_w3" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><input type="number" id="r_w4" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><input type="number" id="r_w5" placeholder="—" step="1" oninput="calcTotal()"></td>
+              <td><span class="total-cell" id="total_w">—</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:14px;">
+        <label style="display:block; margin-bottom:5px;">추출 메모</label>
+        <textarea id="f_recipememo" rows="2" placeholder="스위치 조작, 교반 타이밍 등 특이사항"></textarea>
+      </div>
+    </div>
+
+    <!-- 테이스팅 노트 -->
+    <div class="card">
+      <div class="card-title">테이스팅 노트</div>
+      <div class="field" style="width:180px; margin-bottom:20px;">
+        <label>작성자</label>
+        <input type="text" id="f_author" placeholder="이름">
+      </div>
+
+      <!-- [버그수정②] 평점 로드를 setRating() 함수로 처리 -->
+      <div class="flavor-grid">
+        <div class="flavor-label">향</div>
+        <div class="rating-container" id="f_aroma" data-value="0">
+          <div class="rating-block" onclick="setRating('f_aroma',1)"></div>
+          <div class="rating-block" onclick="setRating('f_aroma',2)"></div>
+          <div class="rating-block" onclick="setRating('f_aroma',3)"></div>
+          <div class="rating-block" onclick="setRating('f_aroma',4)"></div>
+          <div class="rating-block" onclick="setRating('f_aroma',5)"></div>
+        </div>
+
+        <div class="flavor-label">산미</div>
+        <div class="rating-container" id="f_acidity" data-value="0">
+          <div class="rating-block" onclick="setRating('f_acidity',1)"></div>
+          <div class="rating-block" onclick="setRating('f_acidity',2)"></div>
+          <div class="rating-block" onclick="setRating('f_acidity',3)"></div>
+          <div class="rating-block" onclick="setRating('f_acidity',4)"></div>
+          <div class="rating-block" onclick="setRating('f_acidity',5)"></div>
+        </div>
+
+        <div class="flavor-label">단맛</div>
+        <div class="rating-container" id="f_sweetness" data-value="0">
+          <div class="rating-block" onclick="setRating('f_sweetness',1)"></div>
+          <div class="rating-block" onclick="setRating('f_sweetness',2)"></div>
+          <div class="rating-block" onclick="setRating('f_sweetness',3)"></div>
+          <div class="rating-block" onclick="setRating('f_sweetness',4)"></div>
+          <div class="rating-block" onclick="setRating('f_sweetness',5)"></div>
+        </div>
+
+        <div class="flavor-label">바디</div>
+        <div class="rating-container" id="f_body" data-value="0">
+          <div class="rating-block" onclick="setRating('f_body',1)"></div>
+          <div class="rating-block" onclick="setRating('f_body',2)"></div>
+          <div class="rating-block" onclick="setRating('f_body',3)"></div>
+          <div class="rating-block" onclick="setRating('f_body',4)"></div>
+          <div class="rating-block" onclick="setRating('f_body',5)"></div>
+        </div>
+
+        <div class="flavor-label">후미</div>
+        <div class="rating-container" id="f_finish" data-value="0">
+          <div class="rating-block" onclick="setRating('f_finish',1)"></div>
+          <div class="rating-block" onclick="setRating('f_finish',2)"></div>
+          <div class="rating-block" onclick="setRating('f_finish',3)"></div>
+          <div class="rating-block" onclick="setRating('f_finish',4)"></div>
+          <div class="rating-block" onclick="setRating('f_finish',5)"></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label>컵노트</label>
+        <input type="text" id="f_cupnotes" placeholder="예) 오렌지 시트러스, 베리, 코코넛">
+      </div>
+      <div class="field">
+        <label>메모</label>
+        <textarea id="f_memo" rows="5" placeholder="오늘의 커피에 대해 자유롭게 기록하세요..."></textarea>
+      </div>
+    </div>
+
+  </div><!-- /noteEditor -->
+</main>
+
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════
+//  상태
+// ════════════════════════════════════════════════
+let notes = [];
+let currentId = null;
+let currentTemp = 'HOT';
+let isSaving = false;
+
+// ════════════════════════════════════════════════
+//  초기화 — 앱 시작 시 시트에서 데이터 로드
+// ════════════════════════════════════════════════
+async function init() {
+  showLoading('노트 불러오는 중...');
+  try {
+    const res = await fetch(SCRIPT_URL);
+    const json = await res.json();
+    if (json.status === 'ok') {
+      notes = json.data;
+    }
+  } catch (e) {
+    showToast('⚠ 데이터 로드 실패. URL을 확인해주세요.', true);
+  }
+  hideLoading();
+  renderSidebar();
+}
+
+// ════════════════════════════════════════════════
+//  사이드바
+// ════════════════════════════════════════════════
+function renderSidebar() {
+  const list = document.getElementById('noteList');
+  const empty = document.getElementById('noteEmpty');
+  Array.from(list.querySelectorAll('.note-item')).forEach(el => el.remove());
+
+  if (notes.length === 0) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  const sorted = [...notes].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  sorted.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'note-item' + (n.id === currentId ? ' active' : '');
+    el.innerHTML = `
+      <div class="note-item-date">${formatDate(n.date)}</div>
+      <div class="note-item-bean">${n.beanname || '원두명 미입력'}</div>
+    `;
+    el.onclick = () => { openNote(n.id); closeSidebar(); };
+    list.appendChild(el);
+  });
+}
+
+function formatDate(d) {
+  if (!d) return '날짜 미입력';
+  const [y, m, day] = d.split('-');
+  return `${y.slice(2)}.${m}.${day}`;
+}
+
+// ════════════════════════════════════════════════
+//  사이드바 토글 (모바일)
+// ════════════════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ════════════════════════════════════════════════
+//  새 노트
+// ════════════════════════════════════════════════
+function newNote() {
+  const id = Date.now().toString();
+  const today = new Date().toISOString().slice(0, 10);
+  const note = { id, date: today, beanname: '', temp: 'HOT' };
+  notes.push(note);
+  openNote(id);
+  closeSidebar();
+}
+
+// ════════════════════════════════════════════════
+//  노트 열기
+// ════════════════════════════════════════════════
+function openNote(id) {
+  currentId = id;
+  const n = notes.find(x => x.id === id);
+  if (!n) return;
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('noteEditor').style.display = 'block';
+  document.getElementById('toolbarRight').style.display = 'flex';
+
+  // 일반 필드
+  setField('f_date', n.date || '');
+  setField('f_place', n.place || '');
+  setField('f_members', n.members || '');
+  setField('f_beanname', n.beanname || '');
+  setField('f_origin', n.origin || '');
+  setField('f_process', n.process || '');
+  setField('f_roaster', n.roaster || '');
+  setField('f_roastdate', n.roastdate || '');
+  setField('f_region', n.region || '');
+  setField('f_farm', n.farm || '');
+  setField('f_altitude', n.altitude || '');
+  setField('f_variety', n.variety || '');
+  setField('f_dose', n.dose || '');
+  setField('f_grind', n.grind || '');
+  setField('f_temp', n.watertemp || '');
+  setField('f_brewer', n.brewer || '');
+  setField('r_t1', n.t1||''); setField('r_t2', n.t2||''); setField('r_t3', n.t3||'');
+  setField('r_t4', n.t4||''); setField('r_t5', n.t5||'');
+  setField('r_w1', n.w1||''); setField('r_w2', n.w2||''); setField('r_w3', n.w3||'');
+  setField('r_w4', n.w4||''); setField('r_w5', n.w5||'');
+  setField('f_recipememo', n.recipememo || '');
+  setField('f_author', n.author || '');
+  setField('f_cupnotes', n.cupnotes || '');
+  setField('f_memo', n.memo || '');
+
+  // [버그수정②] 평점 필드는 setRating으로 별도 처리
+  setRating('f_aroma',     n.aroma     || 0);
+  setRating('f_acidity',   n.acidity   || 0);
+  setRating('f_sweetness', n.sweetness || 0);
+  setRating('f_body',      n.body      || 0);
+  setRating('f_finish',    n.finish    || 0);
+
+  setTemp(n.temp || 'HOT');
+  calcTotal();
+
+  document.getElementById('editorDateLabel').textContent = n.beanname || '새 노트';
+  renderSidebar();
+}
+
+// ════════════════════════════════════════════════
+//  저장 (구글 시트로)
+// ════════════════════════════════════════════════
+async function saveNote() {
+  if (!currentId || isSaving) return;
+  const idx = notes.findIndex(x => x.id === currentId);
+  if (idx === -1) return;
+
+  isSaving = true;
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.textContent = '저장 중...';
+  saveBtn.disabled = true;
+
+  // [버그수정②] 평점 필드는 getRating으로 별도 수집
+  notes[idx] = {
+    ...notes[idx],
+    date:       getField('f_date'),
+    place:      getField('f_place'),
+    members:    getField('f_members'),
+    beanname:   getField('f_beanname'),
+    origin:     getField('f_origin'),
+    process:    getField('f_process'),
+    roaster:    getField('f_roaster'),
+    roastdate:  getField('f_roastdate'),
+    region:     getField('f_region'),
+    farm:       getField('f_farm'),
+    altitude:   getField('f_altitude'),
+    variety:    getField('f_variety'),
+    temp:       currentTemp,
+    dose:       getField('f_dose'),
+    grind:      getField('f_grind'),
+    watertemp:  getField('f_temp'),
+    brewer:     getField('f_brewer'),
+    t1: getField('r_t1'), t2: getField('r_t2'), t3: getField('r_t3'),
+    t4: getField('r_t4'), t5: getField('r_t5'),
+    w1: getField('r_w1'), w2: getField('r_w2'), w3: getField('r_w3'),
+    w4: getField('r_w4'), w5: getField('r_w5'),
+    recipememo: getField('f_recipememo'),
+    author:     getField('f_author'),
+    aroma:      getRating('f_aroma'),
+    acidity:    getRating('f_acidity'),
+    sweetness:  getRating('f_sweetness'),
+    body:       getRating('f_body'),
+    finish:     getRating('f_finish'),
+    cupnotes:   getField('f_cupnotes'),
+    memo:       getField('f_memo'),
+  };
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save', note: notes[idx] }),
+    });
+    showToast('저장되었습니다 ✓');
+    document.getElementById('editorDateLabel').textContent = notes[idx].beanname || '새 노트';
+    renderSidebar();
+  } catch (e) {
+    showToast('저장 실패. 네트워크를 확인해주세요.', true);
+  }
+
+  isSaving = false;
+  saveBtn.textContent = '저장';
+  saveBtn.disabled = false;
+}
+
+// ════════════════════════════════════════════════
+//  삭제
+// ════════════════════════════════════════════════
+async function deleteNote() {
+  if (!currentId) return;
+  if (!confirm('이 노트를 삭제할까요?')) return;
+
+  showLoading('삭제 중...');
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', id: currentId }),
+    });
+  } catch (e) { /* 실패해도 로컬에서는 제거 */ }
+
+  notes = notes.filter(x => x.id !== currentId);
+  currentId = null;
+  hideLoading();
+  document.getElementById('noteEditor').style.display = 'none';
+  document.getElementById('toolbarRight').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('editorDateLabel').textContent = '';
+  renderSidebar();
+  showToast('삭제되었습니다');
+}
+
+// ════════════════════════════════════════════════
+//  인쇄
+// ════════════════════════════════════════════════
+function printNote() { window.print(); }
+
+// ════════════════════════════════════════════════
+//  총합 계산
+// ════════════════════════════════════════════════
+function calcTotal() {
+  const sum = ids => ids.reduce((acc, id) => {
+    const v = parseFloat(document.getElementById(id)?.value);
+    return acc + (isNaN(v) ? 0 : v);
+  }, 0);
+  const tt = sum(['r_t1','r_t2','r_t3','r_t4','r_t5']);
+  const tw = sum(['r_w1','r_w2','r_w3','r_w4','r_w5']);
+  document.getElementById('total_t').textContent = tt > 0 ? tt + '초' : '—';
+  document.getElementById('total_w').textContent = tw > 0 ? tw + 'ml' : '—';
+}
+
+// ════════════════════════════════════════════════
+//  HOT / ICE
+// ════════════════════════════════════════════════
+function setTemp(t) {
+  currentTemp = t;
+  document.getElementById('btnHot').className = 'temp-btn' + (t==='HOT' ? ' active-hot' : '');
+  document.getElementById('btnIce').className = 'temp-btn' + (t==='ICE' ? ' active-ice' : '');
+}
+
+// ════════════════════════════════════════════════
+//  [버그수정②] 평점 헬퍼 (setField/getField 대신 전용 함수)
+// ════════════════════════════════════════════════
+function setRating(id, val) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const v = parseInt(val) || 0;
+  container.dataset.value = v;
+  container.querySelectorAll('.rating-block').forEach((b, i) => {
+    b.classList.toggle('active', i < v);
+  });
+}
+
+function getRating(id) {
+  const container = document.getElementById(id);
+  return container ? (container.dataset.value || '0') : '0';
+}
+
+// setRate는 클릭 토글용 (동일 값 클릭 시 0으로)
+function setRating(id, val) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const cur = parseInt(container.dataset.value) || 0;
+  const newVal = cur === val ? 0 : val;
+  container.dataset.value = newVal;
+  container.querySelectorAll('.rating-block').forEach((b, i) => {
+    b.classList.toggle('active', i < newVal);
+  });
+}
+
+// ════════════════════════════════════════════════
+//  일반 필드 헬퍼
+// ════════════════════════════════════════════════
+function setField(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+function getField(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+// ════════════════════════════════════════════════
+//  로딩 / 토스트
+// ════════════════════════════════════════════════
+function showLoading(msg) {
+  document.getElementById('loadingText').textContent = msg || '처리 중...';
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = 'toast'; }, 2500);
+}
+
+// ════════════════════════════════════════════════
+//  시작
+// ════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
