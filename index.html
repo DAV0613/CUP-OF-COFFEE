@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://script.google.com; img-src 'self' data:;">
 <title>향다미주가배 — 음용노트</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -416,7 +417,8 @@ async function init() {
       notes = json.data;
     }
   } catch (e) {
-    showToast('⚠ 데이터 로드 실패. URL을 확인해주세요.', true);
+    // [보안수정] 기술적 세부사항 노출 방지
+    showToast('⚠ 데이터를 불러올 수 없습니다.', true);
   }
   hideLoading();
   renderSidebar();
@@ -437,10 +439,17 @@ function renderSidebar() {
   sorted.forEach(n => {
     const el = document.createElement('div');
     el.className = 'note-item' + (n.id === currentId ? ' active' : '');
-    el.innerHTML = `
-      <div class="note-item-date">${formatDate(n.date)}</div>
-      <div class="note-item-bean">${n.beanname || '원두명 미입력'}</div>
-    `;
+
+    // [보안수정] innerHTML 대신 textContent로 XSS 방지
+    const dateDiv = document.createElement('div');
+    dateDiv.className = 'note-item-date';
+    dateDiv.textContent = formatDate(n.date);
+    const beanDiv = document.createElement('div');
+    beanDiv.className = 'note-item-bean';
+    beanDiv.textContent = sanitize(n.beanname) || '원두명 미입력';
+    el.appendChild(dateDiv);
+    el.appendChild(beanDiv);
+
     el.onclick = () => { openNote(n.id); closeSidebar(); };
     list.appendChild(el);
   });
@@ -468,7 +477,10 @@ function closeSidebar() {
 //  새 노트
 // ════════════════════════════════════════════════
 function newNote() {
-  const id = Date.now().toString();
+  // [보안수정] 예측 불가능한 ID 생성
+  const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : Date.now().toString() + '-' + Math.random().toString(36).slice(2, 10);
   const today = new Date().toISOString().slice(0, 10);
   const note = { id, date: today, beanname: '', temp: 'HOT' };
   notes.push(note);
@@ -524,7 +536,8 @@ function openNote(id) {
   setTemp(n.temp || 'HOT');
   calcTotal();
 
-  document.getElementById('editorDateLabel').textContent = n.beanname || '새 노트';
+  // [보안수정] textContent에도 sanitize 적용
+  document.getElementById('editorDateLabel').textContent = sanitize(n.beanname) || '새 노트';
   renderSidebar();
 }
 
@@ -582,10 +595,10 @@ async function saveNote() {
       body: JSON.stringify({ action: 'save', note: notes[idx] }),
     });
     showToast('저장되었습니다 ✓');
-    document.getElementById('editorDateLabel').textContent = notes[idx].beanname || '새 노트';
+    document.getElementById('editorDateLabel').textContent = sanitize(notes[idx].beanname) || '새 노트';
     renderSidebar();
   } catch (e) {
-    showToast('저장 실패. 네트워크를 확인해주세요.', true);
+    showToast('저장에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
   }
 
   isSaving = false;
@@ -598,25 +611,33 @@ async function saveNote() {
 // ════════════════════════════════════════════════
 async function deleteNote() {
   if (!currentId) return;
-  if (!confirm('이 노트를 삭제할까요?')) return;
+  // [보안수정] 삭제 시 더 명확한 확인 + 서버 실패 시 로컬 유지
+  const note = notes.find(x => x.id === currentId);
+  const noteName = note ? (sanitize(note.beanname) || '이름 없는 노트') : '노트';
+  if (!confirm(`"${noteName}"을(를) 정말 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
 
   showLoading('삭제 중...');
   try {
-    await fetch(SCRIPT_URL, {
+    const res = await fetch(SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'delete', id: currentId }),
     });
-  } catch (e) { /* 실패해도 로컬에서는 제거 */ }
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error('서버 삭제 실패');
 
-  notes = notes.filter(x => x.id !== currentId);
-  currentId = null;
+    // [보안수정] 서버 삭제 성공 후에만 로컬에서 제거
+    notes = notes.filter(x => x.id !== currentId);
+    currentId = null;
+    document.getElementById('noteEditor').style.display = 'none';
+    document.getElementById('toolbarRight').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('editorDateLabel').textContent = '';
+    renderSidebar();
+    showToast('삭제되었습니다');
+  } catch (e) {
+    showToast('삭제에 실패했습니다. 다시 시도해주세요.', true);
+  }
   hideLoading();
-  document.getElementById('noteEditor').style.display = 'none';
-  document.getElementById('toolbarRight').style.display = 'none';
-  document.getElementById('emptyState').style.display = 'flex';
-  document.getElementById('editorDateLabel').textContent = '';
-  renderSidebar();
-  showToast('삭제되었습니다');
 }
 
 // ════════════════════════════════════════════════
@@ -682,11 +703,33 @@ function setRating(id, val) {
 // ════════════════════════════════════════════════
 function setField(id, val) {
   const el = document.getElementById(id);
-  if (el) el.value = val;
+  // input.value는 브라우저가 자동으로 안전하게 처리하므로 이스케이프 불필요
+  if (el) el.value = truncate(String(val));
 }
 function getField(id) {
   const el = document.getElementById(id);
-  return el ? el.value : '';
+  // 서버로 보내기 전 길이 제한만 적용 (이스케이프는 서버 측에서도 해야 함)
+  return el ? truncate(el.value) : '';
+}
+
+// 길이 제한
+function truncate(str) {
+  if (!str) return '';
+  return str.length > 5000 ? str.slice(0, 5000) : str;
+}
+
+// [보안수정] HTML 이스케이프 + 길이 제한
+function sanitize(str) {
+  if (str === null || str === undefined) return '';
+  const s = String(str);
+  // 길이 제한 (필드당 최대 5000자)
+  const trimmed = s.length > 5000 ? s.slice(0, 5000) : s;
+  return trimmed
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
 }
 
 // ════════════════════════════════════════════════
@@ -713,3 +756,4 @@ init();
 </script>
 </body>
 </html>
+
