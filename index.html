@@ -453,7 +453,20 @@ function formatDate(d) {
   }
   return '날짜 미입력';
 }
-
+     
+function toInputDate(d) {
+  if (!d) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const date = new Date(d);
+  if (!isNaN(date)) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  return '';
+}
+     
 // ════════════════════════════════════════════════
 //  사이드바 토글 (모바일)
 // ════════════════════════════════════════════════
@@ -493,14 +506,14 @@ function openNote(id) {
   document.getElementById('noteEditor').style.display = 'block';
   document.getElementById('toolbarRight').style.display = 'flex';
 
-  setField('f_date', n.date || '');
+  setField('f_date', toInputDate(n.date));
   setField('f_place', n.place || '');
   setField('f_members', n.members || '');
   setField('f_beanname', n.beanname || '');
   setField('f_origin', n.origin || '');
   setField('f_process', n.process || '');
   setField('f_roaster', n.roaster || '');
-  setField('f_roastdate', n.roastdate || '');
+  setField('f_roastdate', toInputDate(n.roastdate));
   setField('f_region', n.region || '');
   setField('f_farm', n.farm || '');
   setField('f_altitude', n.altitude || '');
