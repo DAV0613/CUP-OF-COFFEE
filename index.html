@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://script.google.com; img-src 'self' data:;">
+<!-- [버그수정①] connect-src에 script.googleusercontent.com 추가
+     Google Apps Script는 요청을 이 도메인으로 리다이렉트하므로 반드시 허용해야 해요 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://script.google.com https://script.googleusercontent.com; img-src 'self' data:;">
 <title>향다미주가배 — 음용노트</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -120,7 +122,6 @@
   .recipe-table .total-cell { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: var(--accent); background: rgba(201,168,130,0.1); border-radius: 4px; padding: 6px 10px; display: inline-block; min-width: 52px; }
 
   /* ─── 평점 블록 ─── */
-  /* [버그수정①] .flavor-grid / .flavor-label 중복 제거하고 여기 한 곳에만 정의 */
   .flavor-grid { display: grid; grid-template-columns: 60px 1fr; gap: 12px 16px; align-items: center; }
   .flavor-label { font-family: 'Noto Sans KR', sans-serif; font-size: 11px; font-weight: 500; color: var(--text-mid); text-align: right; }
   .rating-container { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
@@ -168,7 +169,7 @@
     .sidebar.open { transform: translateX(0); }
     .main { margin-left: 0; padding: 20px 16px; }
     .hamburger { display: flex; }
-    .topbar-right .btn-ghost { display: none; } /* 인쇄 버튼 모바일 숨김 */
+    .topbar-right .btn-ghost { display: none; }
     .field-grid-2, .field-grid-3, .field-grid-4 { grid-template-columns: 1fr; }
     .field.span-2, .field.span-4 { grid-column: span 1; }
     .card { padding: 20px 18px; }
@@ -178,8 +179,6 @@
 </head>
 <body>
 
-<!-- ★ 여기에 Apps Script URL을 붙여넣으세요 ★
-     배포 후 받는 주소를 아래 '' 안에 넣으면 돼요 -->
 <script>
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw8mfP_TbxvhBShzvy7zSvoeIJkRpUXLFYx536dt0ZthkodNxwowIiSU1NRuVKo-VU/exec';
 </script>
@@ -210,7 +209,6 @@
 
 <!-- 메인 -->
 <main class="main">
-  <!-- 상단 바 -->
   <div class="topbar">
     <div class="topbar-left">
       <button class="hamburger" onclick="toggleSidebar()" aria-label="메뉴">
@@ -225,14 +223,12 @@
     </div>
   </div>
 
-  <!-- 빈 화면 -->
   <div id="emptyState" class="empty-state">
     <div class="empty-icon">☕</div>
     <div class="empty-title">오늘의 한 잔을 기록해보세요</div>
     <div class="empty-desc">왼쪽 메뉴에서 '새 노트 작성'을 눌러보세요</div>
   </div>
 
-  <!-- 에디터 -->
   <div id="noteEditor" style="display:none;">
 
     <!-- 기본 정보 -->
@@ -272,22 +268,10 @@
           <button class="temp-btn active-hot" id="btnHot" onclick="setTemp('HOT')">HOT</button>
           <button class="temp-btn" id="btnIce" onclick="setTemp('ICE')">ICE</button>
         </div>
-        <div class="field" style="min-width:90px;">
-          <label>도징량 (g)</label>
-          <input type="number" id="f_dose" placeholder="20" step="0.5">
-        </div>
-        <div class="field" style="min-width:100px;">
-          <label>분쇄도</label>
-          <input type="text" id="f_grind" placeholder="클릭, 마이크론">
-        </div>
-        <div class="field" style="min-width:90px;">
-          <label>물온도 (℃)</label>
-          <input type="number" id="f_temp" placeholder="93" step="1">
-        </div>
-        <div class="field" style="min-width:110px;">
-          <label>추출 도구</label>
-          <input type="text" id="f_brewer" placeholder="V60, 오리가미 등">
-        </div>
+        <div class="field" style="min-width:90px;"><label>도징량 (g)</label><input type="number" id="f_dose" placeholder="20" step="0.5"></div>
+        <div class="field" style="min-width:100px;"><label>분쇄도</label><input type="text" id="f_grind" placeholder="클릭, 마이크론"></div>
+        <div class="field" style="min-width:90px;"><label>물온도 (℃)</label><input type="number" id="f_temp" placeholder="93" step="1"></div>
+        <div class="field" style="min-width:110px;"><label>추출 도구</label><input type="text" id="f_brewer" placeholder="V60, 오리가미 등"></div>
       </div>
       <div class="recipe-table-wrap">
         <table class="recipe-table">
@@ -330,7 +314,6 @@
         <input type="text" id="f_author" placeholder="이름">
       </div>
 
-      <!-- [버그수정②] 평점 로드를 setRating() 함수로 처리 -->
       <div class="flavor-grid">
         <div class="flavor-label">향</div>
         <div class="rating-container" id="f_aroma" data-value="0">
@@ -393,7 +376,6 @@
   </div><!-- /noteEditor -->
 </main>
 
-<!-- 토스트 -->
 <div class="toast" id="toast"></div>
 
 <script>
@@ -406,7 +388,7 @@ let currentTemp = 'HOT';
 let isSaving = false;
 
 // ════════════════════════════════════════════════
-//  초기화 — 앱 시작 시 시트에서 데이터 로드
+//  초기화
 // ════════════════════════════════════════════════
 async function init() {
   showLoading('노트 불러오는 중...');
@@ -417,7 +399,6 @@ async function init() {
       notes = json.data;
     }
   } catch (e) {
-    // [보안수정] 기술적 세부사항 노출 방지
     showToast('⚠ 데이터를 불러올 수 없습니다.', true);
   }
   hideLoading();
@@ -440,13 +421,13 @@ function renderSidebar() {
     const el = document.createElement('div');
     el.className = 'note-item' + (n.id === currentId ? ' active' : '');
 
-    // [보안수정] innerHTML 대신 textContent로 XSS 방지
+    // [보안수정 유지] innerHTML 대신 textContent로 XSS 방지
     const dateDiv = document.createElement('div');
     dateDiv.className = 'note-item-date';
     dateDiv.textContent = formatDate(n.date);
     const beanDiv = document.createElement('div');
     beanDiv.className = 'note-item-bean';
-    beanDiv.textContent = sanitize(n.beanname) || '원두명 미입력';
+    beanDiv.textContent = n.beanname || '원두명 미입력';
     el.appendChild(dateDiv);
     el.appendChild(beanDiv);
 
@@ -477,7 +458,7 @@ function closeSidebar() {
 //  새 노트
 // ════════════════════════════════════════════════
 function newNote() {
-  // [보안수정] 예측 불가능한 ID 생성
+  // [보안수정 유지] 예측 불가능한 UUID로 ID 생성
   const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
     ? crypto.randomUUID()
     : Date.now().toString() + '-' + Math.random().toString(36).slice(2, 10);
@@ -500,7 +481,6 @@ function openNote(id) {
   document.getElementById('noteEditor').style.display = 'block';
   document.getElementById('toolbarRight').style.display = 'flex';
 
-  // 일반 필드
   setField('f_date', n.date || '');
   setField('f_place', n.place || '');
   setField('f_members', n.members || '');
@@ -526,23 +506,22 @@ function openNote(id) {
   setField('f_cupnotes', n.cupnotes || '');
   setField('f_memo', n.memo || '');
 
-  // [버그수정②] 평점 필드는 setRating으로 별도 처리
-  setRating('f_aroma',     n.aroma     || 0);
-  setRating('f_acidity',   n.acidity   || 0);
-  setRating('f_sweetness', n.sweetness || 0);
-  setRating('f_body',      n.body      || 0);
-  setRating('f_finish',    n.finish    || 0);
+  // 평점 불러오기는 loadRating 사용
+  loadRating('f_aroma',     n.aroma     || 0);
+  loadRating('f_acidity',   n.acidity   || 0);
+  loadRating('f_sweetness', n.sweetness || 0);
+  loadRating('f_body',      n.body      || 0);
+  loadRating('f_finish',    n.finish    || 0);
 
   setTemp(n.temp || 'HOT');
   calcTotal();
 
-  // [보안수정] textContent에도 sanitize 적용
-  document.getElementById('editorDateLabel').textContent = sanitize(n.beanname) || '새 노트';
+  document.getElementById('editorDateLabel').textContent = n.beanname || '새 노트';
   renderSidebar();
 }
 
 // ════════════════════════════════════════════════
-//  저장 (구글 시트로)
+//  저장
 // ════════════════════════════════════════════════
 async function saveNote() {
   if (!currentId || isSaving) return;
@@ -554,7 +533,6 @@ async function saveNote() {
   saveBtn.textContent = '저장 중...';
   saveBtn.disabled = true;
 
-  // [버그수정②] 평점 필드는 getRating으로 별도 수집
   notes[idx] = {
     ...notes[idx],
     date:       getField('f_date'),
@@ -595,7 +573,7 @@ async function saveNote() {
       body: JSON.stringify({ action: 'save', note: notes[idx] }),
     });
     showToast('저장되었습니다 ✓');
-    document.getElementById('editorDateLabel').textContent = sanitize(notes[idx].beanname) || '새 노트';
+    document.getElementById('editorDateLabel').textContent = notes[idx].beanname || '새 노트';
     renderSidebar();
   } catch (e) {
     showToast('저장에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
@@ -611,9 +589,9 @@ async function saveNote() {
 // ════════════════════════════════════════════════
 async function deleteNote() {
   if (!currentId) return;
-  // [보안수정] 삭제 시 더 명확한 확인 + 서버 실패 시 로컬 유지
+  // [보안수정 유지] 노트 이름 포함한 명확한 삭제 확인
   const note = notes.find(x => x.id === currentId);
-  const noteName = note ? (sanitize(note.beanname) || '이름 없는 노트') : '노트';
+  const noteName = note ? (note.beanname || '이름 없는 노트') : '노트';
   if (!confirm(`"${noteName}"을(를) 정말 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
 
   showLoading('삭제 중...');
@@ -625,7 +603,7 @@ async function deleteNote() {
     const json = await res.json();
     if (json.status !== 'ok') throw new Error('서버 삭제 실패');
 
-    // [보안수정] 서버 삭제 성공 후에만 로컬에서 제거
+    // [보안수정 유지] 서버 성공 확인 후 로컬에서 제거
     notes = notes.filter(x => x.id !== currentId);
     currentId = null;
     document.getElementById('noteEditor').style.display = 'none';
@@ -669,9 +647,12 @@ function setTemp(t) {
 }
 
 // ════════════════════════════════════════════════
-//  [버그수정②] 평점 헬퍼 (setField/getField 대신 전용 함수)
+//  [버그수정②] setRating 중복 제거 — 역할별로 함수 분리
+//
+//  loadRating : 저장된 값을 불러와서 블록에 표시 (openNote에서 호출)
+//  setRating  : 블록 클릭 시 토글 (HTML onclick에서 호출)
 // ════════════════════════════════════════════════
-function setRating(id, val) {
+function loadRating(id, val) {
   const container = document.getElementById(id);
   if (!container) return;
   const v = parseInt(val) || 0;
@@ -681,21 +662,20 @@ function setRating(id, val) {
   });
 }
 
-function getRating(id) {
-  const container = document.getElementById(id);
-  return container ? (container.dataset.value || '0') : '0';
-}
-
-// setRate는 클릭 토글용 (동일 값 클릭 시 0으로)
 function setRating(id, val) {
   const container = document.getElementById(id);
   if (!container) return;
   const cur = parseInt(container.dataset.value) || 0;
-  const newVal = cur === val ? 0 : val;
+  const newVal = cur === val ? 0 : val; // 같은 칸 다시 클릭하면 0으로 초기화
   container.dataset.value = newVal;
   container.querySelectorAll('.rating-block').forEach((b, i) => {
     b.classList.toggle('active', i < newVal);
   });
+}
+
+function getRating(id) {
+  const container = document.getElementById(id);
+  return container ? (container.dataset.value || '0') : '0';
 }
 
 // ════════════════════════════════════════════════
@@ -703,26 +683,23 @@ function setRating(id, val) {
 // ════════════════════════════════════════════════
 function setField(id, val) {
   const el = document.getElementById(id);
-  // input.value는 브라우저가 자동으로 안전하게 처리하므로 이스케이프 불필요
   if (el) el.value = truncate(String(val));
 }
 function getField(id) {
   const el = document.getElementById(id);
-  // 서버로 보내기 전 길이 제한만 적용 (이스케이프는 서버 측에서도 해야 함)
   return el ? truncate(el.value) : '';
 }
 
-// 길이 제한
+// 필드당 최대 5000자 제한
 function truncate(str) {
   if (!str) return '';
   return str.length > 5000 ? str.slice(0, 5000) : str;
 }
 
-// [보안수정] HTML 이스케이프 + 길이 제한
+// [보안수정 유지] HTML 이스케이프 (confirm 메시지 등에 사용)
 function sanitize(str) {
   if (str === null || str === undefined) return '';
   const s = String(str);
-  // 길이 제한 (필드당 최대 5000자)
   const trimmed = s.length > 5000 ? s.slice(0, 5000) : s;
   return trimmed
     .replace(/&/g, '&amp;')
@@ -756,4 +733,3 @@ init();
 </script>
 </body>
 </html>
-
